@@ -41,6 +41,7 @@ endif
 
 " flow error format.
 let s:flow_errorformat = '%EFile "%f"\, line %l\, characters %c-%.%#,%Z%m,'
+let s:flow_infoformat = '%IFile "%f"\, line %l\, characters %c-%.%#,%Z%m,'
 " flow from editor.
 let s:flow_from = '--from vim'
 
@@ -163,6 +164,27 @@ function! flow#jump_to_def()
   end
 endfunction
 
+" Find refs of the current cursor position
+function! flow#find_refs()
+  let pos = line('.').' '.col('.')
+  let path = ' --path '.fnameescape(expand('%'))
+  let stdin = join(getline(1,'$'), "\n")
+  let flow_result = <SID>FlowClientCall('find-refs '.pos.path, '', stdin)
+  let refs = split(flow_result, '\n')[1:1000]
+
+  let old_fmt = &errorformat
+  let &errorformat = s:flow_infoformat
+
+  cgetexpr refs
+
+  if g:flow#autoclose
+    botright cwindow
+  else
+    botright copen
+  endif
+  let &errorformat = old_fmt
+endfunction
+
 " Open importers of current file in quickfix window
 function! flow#get_importers()
   let flow_result = <SID>FlowClientCall('get-importers "'.expand('%').'" --strip-root', '')
@@ -193,6 +215,7 @@ command! FlowMake         call flow#typecheck()
 command! FlowType         call flow#get_type()
 command! FlowJumpToDef    call flow#jump_to_def()
 command! FlowGetImporters call flow#get_importers()
+command! FlowFindRefs     call flow#find_refs()
 
 au BufWritePost *.js,*.jsx if g:flow#enable | call flow#typecheck() | endif
 
